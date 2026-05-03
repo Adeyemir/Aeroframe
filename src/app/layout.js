@@ -2,7 +2,7 @@ import './globals.css';
 
 export const metadata = {
   title: 'AEROFRAME \u2014 Cameras & Drones | Pay with USDC',
-  description: 'Premium cameras and drones. Pay with USDC stablecoins. Instant, borderless checkout powered by Blockradar.',
+  description: 'Premium cameras and drones. Pay with USDC from any chain. Instant, borderless checkout powered by Circle Unified Balance.',
 };
 
 export default function RootLayout({ children }) {
@@ -21,9 +21,9 @@ export default function RootLayout({ children }) {
           </nav>
           {children}
           <footer className="powered-by">
-            Stablecoin payments powered by{' '}
-            <a href="https://blockradar.co" target="_blank" rel="noopener">
-              Blockradar
+            Chain-agnostic USDC payments powered by{' '}
+            <a href="https://docs.arc.network/app-kit" target="_blank" rel="noopener">
+              Circle Unified Balance
             </a>
           </footer>
         </div>

@@ -110,7 +110,7 @@ export default function StorePage() {
         </h1>
         <p>
           Presets, templates, 3D models &amp; more for drone and camera creators.
-          Pay with USDC on Base. Instant. Borderless. No banks.
+          Pay with USDC from any chain. Instant. Borderless. No banks.
         </p>
       </section>
 
@@ -157,8 +157,8 @@ export default function StorePage() {
         <div className="grid-3">
           {[
             { step: '01', title: 'Choose your gear', desc: 'Browse the collection and select Pay with USDC. A unique deposit address is generated instantly.' },
-            { step: '02', title: 'Send USDC', desc: 'Send the exact amount from any wallet on Base network. Payment is detected on-chain in seconds.' },
-            { step: '03', title: 'Confirmed', desc: 'Payment verified automatically via Blockradar. Funds settle to merchant treasury. Done.' },
+            { step: '02', title: 'Send USDC', desc: 'Send the exact amount from any wallet — Arc, Ethereum, Base, Arbitrum, Polygon, Avalanche, Optimism, or Unichain. Payment is detected automatically.' },
+            { step: '03', title: 'Confirmed', desc: 'Payment verified and deposited into the merchant\'s unified USDC balance via Circle. Done.' },
           ].map((s) => (
             <div key={s.step} className="step-card">
               <div className="step-number">{s.step}</div>
@@ -170,7 +170,7 @@ export default function StorePage() {
       </section>
 
       <div className="demo-banner">
-        Demo Store &middot; This is a testnet demo powered by Blockradar. Payments use Base testnet USDC.
+        Demo Store &middot; Testnet demo powered by Circle Unified Balance. Pay with USDC from 8 supported networks.
       </div>
 
       {/* Checkout Modal */}

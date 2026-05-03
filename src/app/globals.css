@@ -1306,3 +1306,98 @@ tr:hover td {
     height: 56px;
   }
 }
+
+/* ─── Chain Badges ─── */
+.chain-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chain-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: var(--bg-grey);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+}
+
+.chain-badge:hover {
+  background: var(--bg-white);
+  border-color: var(--text-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.chain-badge-sm {
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
+/* ─── Checkout Supported Chains ─── */
+.checkout-supported-chains {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--success-bg);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--success);
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.checkout-supported-chains strong {
+  font-weight: 600;
+}
+
+/* ─── Balance Breakdown ─── */
+.balance-breakdown-card {
+  background: var(--bg-white);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.balance-breakdown-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chain-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-grey);
+  border-radius: var(--radius-sm);
+}
+
+.chain-balance-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.chain-balance-amount {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+/* ─── Listener Status ─── */
+.listener-status {
+  background: var(--bg-white);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-sm);
+}

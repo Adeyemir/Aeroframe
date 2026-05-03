@@ -7,14 +7,15 @@
  * Steps:
  * 1. Generate a unique order ID
  * 2. Create the order in our store
- * 3. Call Blockradar API to generate a dedicated deposit address
- *    (with orderId in metadata for webhook matching)
- * 4. Return the order + deposit address to the frontend
+ * 3. Generate a wallet using ethers.js (works on all EVM chains)
+ * 4. Start the multi-chain listener (if not already running)
+ * 5. Return the order + deposit address to the frontend
  */
 
 import { NextResponse } from 'next/server';
 import { createOrder, updateOrder } from '@/lib/orders';
-import { generateAddress } from '@/lib/blockradar';
+import { generateOrderWallet } from '@/lib/wallet';
+import { startListener, getListenerStatus } from '@/lib/listener';
 
 export async function POST(request) {
   try {
@@ -41,17 +42,21 @@ export async function POST(request) {
       amount: parseFloat(amount),
     });
 
-    // 3. Call Blockradar to generate deposit address
-    // The orderId goes into metadata — Blockradar returns it in webhooks
-    const { address, blockchain } = await generateAddress(orderId, customerName);
+    // 3. Generate EVM wallet (same address works on Eth, Base, Arb)
+    const { address, privateKey } = generateOrderWallet();
 
-    // 4. Link the deposit address to our order
+    // 4. Link the deposit address + private key to our order
     updateOrder(orderId, {
       depositAddress: address,
-      blockchain: blockchain,
+      depositPrivateKey: privateKey,
+      blockchain: 'evm-multi',
     });
 
-    // 5. Return everything the frontend needs
+    // 5. Ensure the multi-chain listener is running
+    startListener();
+
+    // 6. Return everything the frontend needs
+    // NOTE: never expose privateKey to the frontend
     return NextResponse.json({
       success: true,
       order: {
@@ -59,7 +64,8 @@ export async function POST(request) {
         item,
         amount: parseFloat(amount),
         depositAddress: address,
-        blockchain,
+        blockchain: 'evm-multi',
+        supportedChains: getListenerStatus().chains,
         status: 'pending',
       },
     });

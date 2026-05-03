@@ -83,6 +83,28 @@ function CheckoutContent() {
     }
   }
 
+  // Get block explorer URL based on which chain paid
+  function getExplorerUrl(chain, txHash) {
+    if (!txHash) return null;
+    const explorers = {
+      'Arc Testnet': 'https://testnet.arcscan.app/tx/',
+      'Ethereum Sepolia': 'https://sepolia.etherscan.io/tx/',
+      'Base Sepolia': 'https://sepolia.basescan.org/tx/',
+      'Arbitrum Sepolia': 'https://sepolia.arbiscan.io/tx/',
+      'Polygon Amoy': 'https://amoy.polygonscan.com/tx/',
+      'Avalanche Fuji': 'https://testnet.snowtrace.io/tx/',
+      'OP Sepolia': 'https://sepolia-optimism.etherscan.io/tx/',
+      'Unichain Sepolia': 'https://sepolia.uniscan.xyz/tx/',
+    };
+    const base = explorers[chain] || 'https://sepolia.basescan.org/tx/';
+    return `${base}${txHash}`;
+  }
+
+  // Get short chain name for badges
+  function shortChainName(name) {
+    return name?.replace(' Sepolia', '').replace(' Testnet', '').replace(' Amoy', '').replace(' Fuji', '');
+  }
+
   if (error) {
     return (
       <main style={{ textAlign: 'center', padding: '80px 0' }}>
@@ -106,9 +128,7 @@ function CheckoutContent() {
 
   // ─── Success / Receipt State ───
   if (order.status === 'paid') {
-    const explorerUrl = order.txHash
-      ? `https://sepolia.basescan.org/tx/${order.txHash}`
-      : null;
+    const explorerUrl = getExplorerUrl(order.paidChain, order.txHash);
     const paidDate = order.paidAt ? new Date(order.paidAt) : new Date();
 
     return (
@@ -181,48 +201,51 @@ function CheckoutContent() {
           </div>
 
           {/* Transaction details */}
-          {order.txHash && (
-            <>
-              <div className="receipt-divider" />
-              <div className="receipt-section">
-                <div className="receipt-section-label">Transaction</div>
-                <div className="receipt-row">
-                  <span className="receipt-row-label">Network</span>
-                  <span className="receipt-row-value">Base (Testnet)</span>
-                </div>
-                <div className="receipt-row">
-                  <span className="receipt-row-label">Tx Hash</span>
-                  <a
-                    href={explorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="receipt-tx-link mono"
-                  >
-                    {order.txHash.slice(0, 10)}...{order.txHash.slice(-8)}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                      <polyline points="15 3 21 3 21 9" />
-                      <line x1="10" y1="14" x2="21" y2="3" />
-                    </svg>
-                  </a>
-                </div>
+          <div className="receipt-divider" />
+          <div className="receipt-section">
+            <div className="receipt-section-label">Transaction</div>
+            <div className="receipt-row">
+              <span className="receipt-row-label">Network</span>
+              <span className="receipt-row-value">{order.paidChain || 'EVM'} (Testnet)</span>
+            </div>
+            {order.depositedToUB && (
+              <div className="receipt-row">
+                <span className="receipt-row-label">Unified Balance</span>
+                <span className="receipt-row-value" style={{ color: 'var(--success)' }}>
+                  ✓ Deposited
+                </span>
               </div>
-            </>
-          )}
+            )}
+            {order.txHash && (
+              <div className="receipt-row">
+                <span className="receipt-row-label">Tx Hash</span>
+                <a
+                  href={explorerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="receipt-tx-link mono"
+                >
+                  {order.txHash.slice(0, 10)}...{order.txHash.slice(-8)}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </a>
+              </div>
+            )}
+          </div>
 
           <div className="receipt-divider" />
 
           {/* Footer */}
           <div className="receipt-footer">
-            <p>Stablecoin payment verified by Blockradar</p>
+            <p>Chain-agnostic payment powered by Circle Unified Balance</p>
           </div>
 
           <div className="receipt-actions">
-            <a href="/" className="btn btn-primary" style={{ flex: 1 }}>
+            <a href="/" className="btn btn-primary" style={{ width: '100%' }}>
               Continue Shopping
-            </a>
-            <a href="/dashboard" className="btn btn-secondary" style={{ flex: 1 }}>
-              View Dashboard
             </a>
           </div>
         </div>
@@ -271,12 +294,11 @@ function CheckoutContent() {
           )}
 
           <div className="detail-card">
-            <div className="detail-label">Network</div>
-            <div className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              Base (Testnet)
-              <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 400 }}>
-                &bull; USDC
-              </span>
+            <div className="detail-label">Accepted Networks</div>
+            <div className="chain-badges">
+              {(order.supportedChains || []).map(chain => (
+                <span key={chain} className="chain-badge">{shortChainName(chain)}</span>
+              ))}
             </div>
           </div>
 
@@ -285,7 +307,7 @@ function CheckoutContent() {
             <div style={{ flex: 1 }}>
               <div className="waiting-title">Listening for payment...</div>
               <div className="waiting-desc">
-                This page updates automatically when USDC is received
+                This page updates automatically when USDC is received on any chain
               </div>
             </div>
             <div className="spinner" />
@@ -309,8 +331,15 @@ function CheckoutContent() {
               </div>
             </div>
 
-            <div className="checkout-warning">
-              Send only USDC on the Base network to this address. Sending other tokens or using a different network may result in permanent loss of funds.
+            <div className="checkout-supported-chains">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>
+                This address accepts USDC from {(order.supportedChains || []).length} networks including{' '}
+                <strong>Arc</strong>, <strong>Ethereum</strong>, <strong>Base</strong>, <strong>Arbitrum</strong>,{' '}
+                <strong>Polygon</strong>, and more. Same address, any EVM chain.
+              </span>
             </div>
 
             <div className="checkout-ref">

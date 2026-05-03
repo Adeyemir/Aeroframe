@@ -3,13 +3,14 @@
  * GET /api/orders/status?id=order_xxx
  * 
  * The checkout page polls this every 3 seconds.
- * When the webhook handler marks the order as "paid",
+ * When the multi-chain listener marks the order as "paid",
  * this endpoint returns the updated status and the
  * checkout page shows the success confirmation.
  */
 
 import { NextResponse } from 'next/server';
 import { getOrder } from '@/lib/orders';
+import { getListenerStatus } from '@/lib/listener';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -34,8 +35,11 @@ export async function GET(request) {
     amount: order.amount,
     status: order.status,
     depositAddress: order.depositAddress,
+    paidChain: order.paidChain,
+    depositedToUB: order.depositedToUB,
     txHash: order.txHash,
     paidAt: order.paidAt,
     createdAt: order.createdAt,
+    supportedChains: getListenerStatus().chains,
   });
 }
