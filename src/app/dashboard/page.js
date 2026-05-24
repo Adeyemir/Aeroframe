@@ -195,7 +195,7 @@ export default function DashboardPage() {
         {availableBalance > 0 && (
           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
             {stats.arcBalance > 0 && <span>${stats.arcBalance.toFixed(2)} on Arc · </span>}
-            {stats.ubBalance > 0 && <span>${stats.ubBalance.toFixed(2)} in Unified Balance · </span>}
+            {stats.availableBalance > 0 && <span>${parseFloat(stats.availableBalance).toFixed(2)} in Unified Balance · </span>}
             {unspentOrders.length} order(s) available
           </div>
         )}

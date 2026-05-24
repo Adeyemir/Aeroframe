@@ -1,6 +1,6 @@
 # AEROFRAME
 
-A stablecoin-powered e-commerce storefront with cross-chain USDC checkout. Customers pay with USDC from any supported EVM chain to a single address; the merchant sees one unified balance and withdraws to whichever chain they want. Built with Next.js 14 and Circle Unified Balance (App Kit + CCTP).
+A stablecoin-powered e-commerce storefront with cross-chain USDC checkout. Each order gets a fresh Circle Developer-Controlled Wallet (gasless via paymaster), customers pay with USDC from any supported EVM chain, payments deposit into Unified Balance automatically, and the merchant withdraws to any chain. Built with Next.js 14 and the full Circle stack (DCW + Unified Balance Kit + Gateway).
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
 ![USDC](https://img.shields.io/badge/USDC-7%20chains-2775CA)
@@ -15,7 +15,7 @@ Customer clicks "Pay with USDC"
 Modal collects name, email, delivery address
         │
         ▼
-Backend creates order + generates a unique deposit address (one EVM address, all chains)
+Backend creates order + provisions a fresh Circle DCW (SCA, same address across EVM chains)
         │
         ▼
 Checkout page shows QR + address, polls for payment status every 3s
@@ -27,16 +27,18 @@ Customer sends USDC from ANY supported chain (Arc, Ethereum, Base, Arbitrum, Ava
 Multi-chain listener detects the payment, identifies the source chain
         │
         ▼
-Arc payments  → stay native (no CCTP needed; USDC is already on Circle's L1)
-Other chains  → auto-deposit into Unified Balance via CCTP
+Arc payments  → DCW holds USDC natively (no CCTP needed)
+Other chains  → DCW deposits into Unified Balance (Circle paymaster sponsors gas)
         │
         ▼
-Order marked PAID, customer sees receipt with tx hash
+Order marked PAID, customer sees receipt
         │
         ▼
-Merchant dashboard shows unified balance across all chains
-Merchant withdraws to any of 8 chains (direct transfer if funds are still native, UB spend otherwise)
+Merchant dashboard reads live Unified Balance aggregated across every per-order DCW
+Merchant withdraws to any supported chain → DCW spends from UB (gas sponsored)
 ```
+
+**Zero ETH required.** Customers don't need native gas tokens beyond what their source chain requires for the inbound transfer. The store never funds anything with ETH/MATIC/AVAX — Circle's paymaster handles every signing operation.
 
 ## Features
 
@@ -55,11 +57,13 @@ Merchant withdraws to any of 8 chains (direct transfer if funds are still native
 |-------|-----------|
 | Framework | Next.js 14 (App Router) |
 | Frontend | React 18, CSS (no UI library) |
-| Cross-chain USDC | Circle App Kit + Unified Balance + CCTP |
-| Wallet signing | viem, ethers |
+| Wallets | Circle Developer-Controlled Wallets (`@circle-fin/developer-controlled-wallets`) |
+| Unified Balance | Circle App Kit + Unified Balance Kit + Circle Wallets Adapter |
+| Cross-chain USDC | CCTP V2 (under the hood) |
+| Gas | Sponsored by Circle's paymaster (SCA model) |
 | Supported chains | Arc Testnet, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, Avalanche Fuji, OP Sepolia, Unichain Sepolia |
 | QR Codes | `qrcode` npm package |
-| State | In-memory Map (swap for Postgres/Supabase in production) |
+| State | File-backed JSON (swap for Postgres/Supabase in production) |
 
 ## Project Structure
 

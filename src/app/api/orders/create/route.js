@@ -1,27 +1,28 @@
 /**
  * Create Order Endpoint
  * POST /api/orders/create
- * 
- * Called when customer clicks "Pay with USDC" on a product.
- * 
+ *
  * Steps:
  * 1. Generate a unique order ID
  * 2. Create the order in our store
- * 3. Generate a wallet using ethers.js (works on all EVM chains)
+ * 3. Provision a Circle Developer-Controlled Wallet (SCA, same address across EVM chains)
  * 4. Start the multi-chain listener (if not already running)
  * 5. Return the order + deposit address to the frontend
+ *
+ * The DCW receives USDC on any supported chain, then the listener triggers a
+ * Unified Balance deposit. Gas is sponsored by Circle — no need to fund the
+ * wallet with native tokens. No private keys live in our env.
  */
 
 import { NextResponse } from 'next/server';
 import { createOrder, updateOrder } from '@/lib/orders';
-import { generateOrderWallet } from '@/lib/wallet';
+import { createDepositWallet } from '@/lib/circleDcw';
 import { startListener, getListenerStatus } from '@/lib/listener';
 
 export async function POST(request) {
   try {
     const { customerName, email, deliveryAddress, item, amount } = await request.json();
 
-    // Validate input
     if (!customerName || !item || !amount) {
       return NextResponse.json(
         { error: 'Missing required fields: customerName, item, amount' },
@@ -29,11 +30,9 @@ export async function POST(request) {
       );
     }
 
-    // 1. Generate unique order ID
     const orderId = `order_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // 2. Create order in store (status: pending)
-    const order = createOrder({
+    createOrder({
       id: orderId,
       customerName,
       email,
@@ -42,21 +41,19 @@ export async function POST(request) {
       amount: parseFloat(amount),
     });
 
-    // 3. Generate EVM wallet (same address works on Eth, Base, Arb)
-    const { address, privateKey } = generateOrderWallet();
+    // Provision a fresh Circle DCW for this order. The returned address is the
+    // canonical SCA address that works on every supported EVM chain.
+    const { walletId, address, walletRecords } = await createDepositWallet(orderId);
 
-    // 4. Link the deposit address + private key to our order
     updateOrder(orderId, {
       depositAddress: address,
-      depositPrivateKey: privateKey,
+      circleWalletId: walletId,
+      circleWalletRecords: walletRecords,
       blockchain: 'evm-multi',
     });
 
-    // 5. Ensure the multi-chain listener is running
     startListener();
 
-    // 6. Return everything the frontend needs
-    // NOTE: never expose privateKey to the frontend
     return NextResponse.json({
       success: true,
       order: {

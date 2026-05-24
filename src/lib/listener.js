@@ -1,27 +1,26 @@
 /**
- * Multi-Chain USDC Listener
- * 
- * Polls for incoming USDC transfers on all supported EVM chains.
- * 
- * Payment Strategy (Hybrid UB):
- *   Arc Testnet:    USDC is native → hold in deposit wallet (no CCTP needed)
- *   Other chains:   USDC is ERC-20 → deposit() into Unified Balance via CCTP
- * 
- * Withdrawal is handled separately by /api/withdraw.
+ * Multi-Chain USDC Listener (v3 — Circle DCW edition)
+ *
+ * For each pending order, polls the DCW deposit address on every supported
+ * chain. When USDC is detected:
+ *   - Arc Testnet:  USDC is native — leave in the DCW (or transfer directly later)
+ *   - Other chains: trigger UB deposit via Circle DCW + Unified Balance Kit.
+ *                   Gas is sponsored by Circle's paymaster, no native funding.
+ *
+ * Withdrawals are handled separately in /api/withdraw.
  */
 
 import { getUSDCBalance } from './wallet.js';
-import { depositToUnifiedBalance } from './circle.js';
+import { depositToUB } from './circleDcw.js';
 import { getAllOrders, updateOrder } from './orders.js';
 
-// All chains supported by Circle Unified Balance (EVM testnets)
 const CHAIN_CONFIG = {
   'Arc_Testnet': {
     displayName: 'Arc Testnet',
     rpcUrl: process.env.RPC_ARC_TESTNET || 'https://rpc.testnet.arc.network',
     usdcAddress: process.env.USDC_ARC_TESTNET || '0x3600000000000000000000000000000000000000',
     explorerTx: 'https://testnet.arcscan.app/tx/',
-    isArc: true,  // USDC is native — skip deposit()
+    isArc: true,
   },
   'Ethereum_Sepolia': {
     displayName: 'Ethereum Sepolia',
@@ -41,20 +40,13 @@ const CHAIN_CONFIG = {
     usdcAddress: process.env.USDC_ARB_SEPOLIA || '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
     explorerTx: 'https://sepolia.arbiscan.io/tx/',
   },
-  // Polygon Amoy disabled — RPC is down (ENOTFOUND)
-  // 'Polygon_Amoy': {
-  //   displayName: 'Polygon Amoy',
-  //   rpcUrl: process.env.RPC_POLYGON_AMOY || 'https://rpc-amoy.polygon.technology',
-  //   usdcAddress: process.env.USDC_POLYGON_AMOY || '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
-  //   explorerTx: 'https://amoy.polygonscan.com/tx/',
-  // },
   'Avalanche_Fuji': {
     displayName: 'Avalanche Fuji',
     rpcUrl: process.env.RPC_AVAX_FUJI || 'https://api.avax-test.network/ext/bc/C/rpc',
     usdcAddress: process.env.USDC_AVAX_FUJI || '0x5425890298aed601595a70AB815c96711a31Bc65',
     explorerTx: 'https://testnet.snowtrace.io/tx/',
   },
-  'OP_Sepolia': {
+  'Optimism_Sepolia': {
     displayName: 'OP Sepolia',
     rpcUrl: process.env.RPC_OP_SEPOLIA || 'https://sepolia.optimism.io',
     usdcAddress: process.env.USDC_OP_SEPOLIA || '0x5fd84259d66Cd46123540766Be93DFE6D43130D7',
@@ -68,7 +60,6 @@ const CHAIN_CONFIG = {
   },
 };
 
-// Listener state
 let listenerInterval = null;
 let isScanning = false;
 let lastScanTime = null;
@@ -79,7 +70,6 @@ let scanCount = 0;
  */
 export async function scanAllChains() {
   if (isScanning) {
-    console.log('[Listener] Scan already in progress, skipping...');
     return { skipped: true };
   }
 
@@ -107,11 +97,10 @@ export async function scanAllChains() {
           );
 
           const balanceNum = parseFloat(balance);
-          
+
           if (balanceNum > 0 && balanceNum >= order.amount) {
             console.log(`[Listener] Payment detected: ${balance} USDC on ${config.displayName} for order ${order.id}`);
 
-            // Mark order as paid
             updateOrder(order.id, {
               status: 'paid',
               paidChain: config.displayName,
@@ -120,47 +109,28 @@ export async function scanAllChains() {
               paidAt: new Date().toISOString(),
             });
 
-            // ─── Arc payments: hold in wallet, skip deposit() ───
             if (config.isArc) {
-              console.log(`[Listener] Arc payment — USDC held in deposit wallet (no CCTP needed)`);
-              // No deposit() needed — USDC is already on Circle's L1
+              // USDC on Arc is native — no CCTP/UB deposit needed. The DCW
+              // holds it and the withdraw flow will move it to the merchant.
+              console.log(`[Listener] Arc payment — DCW holds USDC, no UB deposit needed`);
             } else {
-              // ─── Non-Arc payments: deposit() into Unified Balance via CCTP ───
+              // Non-Arc payment — deposit into Unified Balance via the DCW.
+              // Circle's paymaster sponsors gas; the DCW doesn't need native tokens.
               try {
-                const gasKey = process.env.GAS_WALLET_PRIVATE_KEY;
-                if (gasKey) {
-                  const { ethers } = await import('ethers');
-                  const fetchReq = new ethers.FetchRequest(config.rpcUrl);
-                  fetchReq.timeout = 10000;
-                  const provider = new ethers.JsonRpcProvider(fetchReq, undefined, { staticNetwork: true });
-
-                  // Fund deposit wallet with gas for the deposit() tx
-                  const gasBalance = await provider.getBalance(order.depositAddress);
-                  if (gasBalance < ethers.parseEther('0.001')) {
-                    const gasWallet = new ethers.Wallet(gasKey, provider);
-                    const gasTx = await gasWallet.sendTransaction({
-                      to: order.depositAddress,
-                      value: ethers.parseEther('0.001'),
-                    });
-                    await gasTx.wait();
-                    console.log(`[Listener] Gas funded on ${config.displayName}`);
-                  }
-                }
-
-                const depositResult = await depositToUnifiedBalance(
+                const depositResult = await depositToUB(
+                  order.depositAddress,
                   chainId,
-                  order.depositPrivateKey,
-                  balance
+                  balance,
                 );
 
                 updateOrder(order.id, {
                   depositedToUB: true,
-                  depositTxHash: depositResult.txHash || null,
+                  depositTxHash: depositResult?.txHash || null,
                 });
 
-                console.log(`[Listener] Deposited to Unified Balance for order ${order.id} (CCTP ~15 min)`);
+                console.log(`[Listener] DCW deposit to UB submitted for order ${order.id}`);
               } catch (depositErr) {
-                // Payment is still valid even if UB deposit fails
+                // Payment is still valid — UB deposit will be retried via /api/withdraw
                 console.warn(`[Listener] Could not auto-deposit to UB for order ${order.id}:`, depositErr.message);
               }
             }
@@ -171,11 +141,9 @@ export async function scanAllChains() {
               amount: balance,
             });
 
-            // Stop checking other chains for this order
             break;
           }
         } catch (err) {
-          // Don't let one chain error stop the whole scan
           if (!err.message?.includes('timeout')) {
             console.error(`[Listener] Error checking ${config.displayName} for order ${order.id}:`, err.message);
           }
@@ -196,9 +164,6 @@ export async function scanAllChains() {
   }
 }
 
-/**
- * Start the background listener.
- */
 export function startListener(intervalMs = 10000) {
   if (listenerInterval) return false;
 
@@ -213,9 +178,6 @@ export function startListener(intervalMs = 10000) {
   return true;
 }
 
-/**
- * Stop the background listener.
- */
 export function stopListener() {
   if (listenerInterval) {
     clearInterval(listenerInterval);
@@ -225,9 +187,6 @@ export function stopListener() {
   return false;
 }
 
-/**
- * Get listener status.
- */
 export function getListenerStatus() {
   return {
     running: listenerInterval !== null,
@@ -238,16 +197,10 @@ export function getListenerStatus() {
   };
 }
 
-/**
- * Get the chain config.
- */
 export function getChainConfig() {
   return CHAIN_CONFIG;
 }
 
-/**
- * Get explorer URL for a transaction on a specific chain.
- */
 export function getExplorerUrl(chainDisplayName, txHash) {
   const chain = Object.values(CHAIN_CONFIG).find(c => c.displayName === chainDisplayName);
   if (!chain || !txHash) return null;
