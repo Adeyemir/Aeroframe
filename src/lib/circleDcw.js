@@ -17,15 +17,10 @@ import {
 import { createCircleWalletsAdapter } from '@circle-fin/adapter-circle-wallets';
 import { AppKit } from '@circle-fin/app-kit';
 
-const SUPPORTED_BLOCKCHAINS = [
-  'ETH-SEPOLIA',
-  'BASE-SEPOLIA',
-  'ARB-SEPOLIA',
-  'AVAX-FUJI',
-  'OP-SEPOLIA',
-  'UNI-SEPOLIA',
-  'ARC-TESTNET',
-];
+// SCA wallets derive the same address across EVM chains (CREATE2), so we
+// provision on one chain and the address receives USDC on any EVM chain.
+// The Circle Wallets adapter handles per-chain signing for deposits/spends.
+const FACTORY_BLOCKCHAIN = 'BASE-SEPOLIA';
 
 let dcwClient = null;
 let circleAdapter = null;
@@ -97,14 +92,15 @@ export async function createDepositWallet(orderId) {
   const client = getDcwClient();
   const walletSetId = getWalletSetId();
 
-  // Create one wallet per supported chain. SCA derivation makes addresses
-  // identical across EVM chains, so a single deposit address works everywhere.
+  // One SCA wallet on the factory chain. Its address receives USDC on any EVM
+  // chain; the adapter signs deposits/spends per-chain. metadata length must
+  // match count (1), so a single metadata entry.
   const response = await client.createWallets({
     walletSetId,
-    blockchains: SUPPORTED_BLOCKCHAINS,
+    blockchains: [FACTORY_BLOCKCHAIN],
     count: 1,
     accountType: 'SCA',
-    metadata: SUPPORTED_BLOCKCHAINS.map(() => ({ name: `order:${orderId}`, refId: orderId })),
+    metadata: [{ name: `order:${orderId}`, refId: orderId }],
   });
 
   const wallets = response.data?.wallets ?? [];
@@ -112,16 +108,15 @@ export async function createDepositWallet(orderId) {
     throw new Error('Circle createWallets returned no wallets');
   }
 
-  // Use the first wallet's address as canonical. EVM SCAs share addresses.
   const canonicalAddress = wallets[0].address;
   const primaryWalletId = wallets[0].id;
 
-  console.log(`[CircleDcw] Created ${wallets.length} wallet records for order ${orderId} at address ${canonicalAddress}`);
+  console.log(`[CircleDcw] Created wallet for order ${orderId} at ${canonicalAddress}`);
 
   return {
     walletId: primaryWalletId,
     address: canonicalAddress,
-    walletRecords: wallets.map(w => ({ id: w.id, blockchain: w.blockchain, address: w.address })),
+    walletRecords: [{ id: wallets[0].id, blockchain: wallets[0].blockchain, address: wallets[0].address }],
   };
 }
 
