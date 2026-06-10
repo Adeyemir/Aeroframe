@@ -77,7 +77,7 @@ export async function scanAllChains() {
   const results = [];
 
   try {
-    const orders = getAllOrders().filter(o => o.status === 'pending' && o.depositAddress);
+    const orders = (await getAllOrders()).filter(o => o.status === 'pending' && o.depositAddress);
 
     if (orders.length === 0) {
       lastScanTime = new Date().toISOString();
@@ -101,7 +101,7 @@ export async function scanAllChains() {
           if (balanceNum > 0 && balanceNum >= order.amount) {
             console.log(`[Listener] Payment detected: ${balance} USDC on ${config.displayName} for order ${order.id}`);
 
-            updateOrder(order.id, {
+            await updateOrder(order.id, {
               status: 'paid',
               paidChain: config.displayName,
               paidChainId: chainId,
@@ -123,7 +123,7 @@ export async function scanAllChains() {
                   balance,
                 );
 
-                updateOrder(order.id, {
+                await updateOrder(order.id, {
                   depositedToUB: true,
                   depositTxHash: depositResult?.txHash || null,
                 });

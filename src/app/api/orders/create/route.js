@@ -32,7 +32,7 @@ export async function POST(request) {
 
     const orderId = `order_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    createOrder({
+    await createOrder({
       id: orderId,
       customerName,
       email,
@@ -45,7 +45,7 @@ export async function POST(request) {
     // canonical SCA address that works on every supported EVM chain.
     const { walletId, address, walletRecords } = await createDepositWallet(orderId);
 
-    updateOrder(orderId, {
+    await updateOrder(orderId, {
       depositAddress: address,
       circleWalletId: walletId,
       circleWalletRecords: walletRecords,

@@ -17,7 +17,7 @@ export async function GET() {
   // Auto-restart listener if it died (e.g. after hot-reload)
   startListener();
 
-  const allOrders = getAllOrders();
+  const allOrders = await getAllOrders();
   // Strip any legacy private key fields before sending to the frontend.
   const orders = allOrders.map(({ depositPrivateKey, ...order }) => order);
 

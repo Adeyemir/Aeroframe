@@ -20,7 +20,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Missing order ID' }, { status: 400 });
   }
 
-  const order = getOrder(orderId);
+  const order = await getOrder(orderId);
 
   if (!order) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 });

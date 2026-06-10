@@ -7,3 +7,4 @@ node_modules/
 recovery_file*.dat
 *.dat
 orders.json
+.env*.local

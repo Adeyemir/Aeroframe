@@ -27,7 +27,7 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const targetChain = body.chain || 'Arc_Testnet';
 
-    const allOrders = getAllOrders();
+    const allOrders = await getAllOrders();
     const eligibleOrders = allOrders.filter(
       o => o.status === 'paid' && !o.spent && o.depositAddress
     );
@@ -53,7 +53,7 @@ export async function POST(request) {
         if (ubAvailable < 0.10 && order.paidChain === 'Arc Testnet' && !order.depositedToUB) {
           try {
             await depositToUB(order.depositAddress, 'Arc_Testnet', order.amountPaid || order.amount.toString());
-            updateOrder(order.id, { depositedToUB: true });
+            await updateOrder(order.id, { depositedToUB: true });
             balance = await getUBBalance(order.depositAddress);
             ubAvailable = parseFloat(balance?.totalConfirmedBalance || '0');
           } catch (depositErr) {
@@ -80,7 +80,7 @@ export async function POST(request) {
           MERCHANT_ADDRESS,
         );
 
-        updateOrder(order.id, {
+        await updateOrder(order.id, {
           spent: true,
           spendTxHash: result?.txHash || null,
           spendChain: targetChain.replace('_', ' '),
@@ -122,7 +122,7 @@ export async function POST(request) {
 }
 
 export async function GET() {
-  const orders = getAllOrders();
+  const orders = await getAllOrders();
   const paidOrders = orders.filter(o => o.status === 'paid');
   const spentOrders = paidOrders.filter(o => o.spent);
   const unspentOrders = paidOrders.filter(o => !o.spent);
